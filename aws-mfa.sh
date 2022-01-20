@@ -143,12 +143,12 @@ parse_params_configure() {
 
 parse_params_token() {
   if test -f "$config_file"; then
-    env "$(cmd ${config_file} | xargs)"
+    export $(grep -v '^#' $config_file | xargs -d '\n')
   fi
-  from_profile="${MFA_FROM_PROFILE+default}"
-  to_profile="${MFA_TO_PROFILE+default}"
-  serial_device="${MFA_SERIAL+}"
-  duration="${MFA_DURATION+129600}"
+  from_profile="${MFA_FROM_PROFILE-default}"
+  to_profile="${MFA_TO_PROFILE-default}"
+  serial_device="${MFA_SERIAL-}"
+  duration="${MFA_DURATION-129600}"
   token=''
 
   while :; do
