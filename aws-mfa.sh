@@ -249,6 +249,24 @@ token_cmd() {
   validate_params
   [[ -z ${serial_device} ]] && die "Missed serial device"
 
+  credentials=($(aws --profile "$from_profile" \
+              --output text \
+              sts get-session-token \
+                --serial-number "$serial_device" \
+                --duration "$duration" \
+                --token-code "$token"))
+
+  # CREDENTIALS_CONST="${credentials[0]}"
+  access_key_id="${credentials[1]}"
+  # expire_date="${credentials[2]}"
+  secret_key=${credentials[3]}
+  session_token=${credentials[4]}
+
+  aws configure --profile $to_profile set aws_access_key_id "$access_key_id"
+  aws configure --profile $to_profile set aws_secret_access_key "$secret_key"
+  aws configure --profile $to_profile set aws_session_token "$session_token"
+
+  msg "Session credentials saved to \`$to_profile\` aws profile. Use like: \`aws --profile $to_profile s3 ls s3://your-bucket/\`"
 }
 
 parse_params "$@"
