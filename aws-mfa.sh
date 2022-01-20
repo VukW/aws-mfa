@@ -229,10 +229,12 @@ configure_cmd() {
   validate_params
 
   touch $config_file
-  echo "MFA_SERIAL=${serial_device}" > $config_file
-  echo "MFA_FROM_PROFILE=${from_profile}" >> $config_file
-  echo "MFA_TO_PROFILE=${to_profile}" >> $config_file
-  echo "DURATION=${duration}" >> $config_file
+  {
+    echo "MFA_SERIAL=${serial_device}";
+    echo "MFA_FROM_PROFILE=${from_profile}";
+    echo "MFA_TO_PROFILE=${to_profile}";
+    echo "MFA_DURATION=${duration}"
+  } > $config_file
 
   msg "Configuration saved"
 }
