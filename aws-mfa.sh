@@ -5,6 +5,8 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
+config_file=~/.aws/mfa-config
+
 usage() {
   cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [configure|token] [-h] [...]
@@ -40,7 +42,8 @@ Available options:
                     Destination profile credentials would be rewritten!
 
 -d, --duration      Token TTL, default 129600 seconds (36 hours).
--s, --serial        MFA device serial to use.
+-s, --serial        Arn of MFA device serial to use.  Can be taken from
+                    https://console.aws.amazon.com/iam/home?region=us-east-1#/security_credentials
 EOF
   exit
 }
@@ -67,8 +70,9 @@ Available options:
 
 -d, --duration      Token TTL, default 129600 seconds (36 hours). If present
                     then  If present then override configured value.
--s, --serial        MFA device serial to use. If present then override
-                    configured value.
+-s, --serial        Arn of MFA device serial to use. If present then override
+                    configured value. Can be taken from
+                    https://console.aws.amazon.com/iam/home?region=us-east-1#/security_credentials
 mfa-token           one-time 6-digits token from MFA device
 EOF
   exit
@@ -103,13 +107,13 @@ parse_params_configure() {
   serial_device=''
   from_profile='default'
   to_profile='default'
-  duration='129600'
+  duration=129600
 
   while :; do
     case "${1-}" in
     -h | --help) usage_configure ;;
     --no-color) NO_COLOR=1 ;;
-    -s | --serial_device) #
+    -s | --serial) #
       serial_device="${2-}"
       shift
       ;;
@@ -132,14 +136,19 @@ parse_params_configure() {
   done
 
   args=("$@")
-  [[ ${#args[@]} -gt 0 ]] && die "No arguments expected in configure mode"
-  echo ""
+  if [[ ${#args[@]} -gt 0 ]]; then
+    die "No arguments expected in configure mode"
+  fi
 }
 
 parse_params_token() {
-  from_profile='default'
-  to_profile='default'
-  serial_device=''
+  if test -f "$config_file"; then
+    env "$(cmd ${config_file} | xargs)"
+  fi
+  from_profile="${MFA_FROM_PROFILE+default}"
+  to_profile="${MFA_TO_PROFILE+default}"
+  serial_device="${MFA_SERIAL+}"
+  duration="${MFA_DURATION+129600}"
   token=''
 
   while :; do
@@ -173,10 +182,13 @@ parse_params_token() {
 
   # check required params and arguments
 #  [[ -z "${param-}" ]] && die "Missing required parameter: param"
-  [[ ${#args[@]} -gt 1 ]] && die "Too much arguments; only one token expected"
-  [[ ${#args[@]} -eq 0 ]] && die "Missing token"
+  if [[ ${#args[@]} -gt 1 ]]; then
+    die "Too much arguments; only one token expected"
+  fi
+  if [[ ${#args[@]} -eq 0 ]]; then
+    die "Missing token"
+  fi
   token="${args[0]}"
-  echo ""
 }
 
 parse_params() {
@@ -187,7 +199,6 @@ parse_params() {
     command="${1-}"
     shift
     parse_params_configure "$@"
-    msg "${from_profile}, ${to_profile}, ${serial_device}, ${duration}"
     ;;
   token)
     command="${1-}"
@@ -200,12 +211,30 @@ parse_params() {
   esac
 }
 
+validate_params() {
+  if [[ "${from_profile}" == "${to_profile}" ]]; then
+   die "Source and destination profile should differ as destination credentials would be overwritten"
+  fi
+  if [[ ${duration} -gt 129600 ]]; then
+    die "Duration cannot be greater than 129600 sec (36 hours). That is an AWS restriction."
+  fi
+}
+
 configure_cmd() {
   msg "- from: ${from_profile}"
   msg "- to: ${to_profile}"
   msg "- serial: ${serial_device}"
   msg "- duration: ${duration}"
 
+  validate_params
+
+  touch $config_file
+  echo "MFA_SERIAL=${serial_device}" > $config_file
+  echo "MFA_FROM_PROFILE=${from_profile}" >> $config_file
+  echo "MFA_TO_PROFILE=${to_profile}" >> $config_file
+  echo "DURATION=${duration}" >> $config_file
+
+  msg "Configuration saved"
 }
 
 token_cmd() {
@@ -214,6 +243,10 @@ token_cmd() {
   msg "- serial: ${serial_device}"
   msg "- duration: ${duration}"
   msg "- token: ${token}"
+
+  validate_params
+  [[ -z ${serial_device} ]] && die "Missed serial device"
+
 }
 
 parse_params "$@"
