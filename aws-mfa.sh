@@ -164,7 +164,7 @@ parse_params_token() {
       to_profile="${2-}"
       shift
       ;;
-    -s | --serial_device) #
+    -s | --serial) #
       serial_device="${2-}"
       shift
       ;;
