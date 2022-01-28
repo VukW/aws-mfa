@@ -53,3 +53,15 @@ We want to create new / reuse `aws-creds-mfa` profile for any aws-cli operations
 ./aws-mfa.sh 123456  # regenerates credentials, store them in `aws-creds-mfa` profile
 aws --profile aws-creds-mfa s3 ls s3://your-bucket/  # use mfa profile when needed
 ```
+
+# Acknowledgements
+
+I have taken some code from
+
+[AWS CLI — Automation for temporary MFA credentials](https://levelup.gitconnected.com/aws-cli-automation-for-temporary-mfa-credentials-31853b1a8692)
+
+and 
+
+[Minimal safe Bash script template](https://betterdev.blog/minimal-safe-bash-script-template/)
+
+Thank you, folks!
